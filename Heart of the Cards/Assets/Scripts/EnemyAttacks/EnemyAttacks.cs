@@ -7,10 +7,14 @@ public class EnemyAttacks : MonoBehaviour
     [Header("Boss Attack Damage Values")]
     public static int AntiCampingProjectileDamage = 10;
     public static int BeamDamage = 2;
+    public static int WaveDamage = 20;
+    public static int HomingDamage = 5;
 
     [Header("Projectile Prefabs")]
     public GameObject antiCampingProjectile;
     public GameObject beamProjectile;
+    public GameObject waveProjectile;
+    public GameObject homingProjectile;
 
     [Header("Beam Attack Related")]
     public Transform centerOfRoom;
@@ -19,6 +23,8 @@ public class EnemyAttacks : MonoBehaviour
 
     bool antiCampingSpawned = false;
     bool beamSpawned = false;
+    bool waveSpawned = false;
+    bool homingSpawned = false;
 
     // Start is called before the first frame update
     void Start()
@@ -29,8 +35,10 @@ public class EnemyAttacks : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        AntiCampingAttack();
+        //AntiCampingAttack();
         BeamAttack();
+        //WaveAttack();
+        //HomingAttack();
     }
 
     void AntiCampingAttack()
@@ -67,6 +75,24 @@ public class EnemyAttacks : MonoBehaviour
                 Instantiate(beamProjectile, transform.position + Vector3.down,
                     Quaternion.Euler(transform.rotation.eulerAngles.x, transform.rotation.eulerAngles.y, transform.rotation.eulerAngles.z + 90));
             }
+        }
+    }
+
+    void WaveAttack()
+    {
+        if (!waveSpawned)
+        {
+            waveSpawned = true;
+            Instantiate(waveProjectile, transform.position, transform.rotation);
+        }
+    } 
+
+    void HomingAttack()
+    {
+        if (!homingSpawned)
+        {
+            homingSpawned = true;
+            Instantiate(homingProjectile, transform.position, transform.rotation);
         }
     }
 }
