@@ -21,7 +21,7 @@ public class EnemyHealth : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (currentHealth < 0) {
+        if (currentHealth <= 0) {
             Destroy(gameObject);
         }
     }
@@ -30,6 +30,16 @@ public class EnemyHealth : MonoBehaviour
         currentHealth -= amount;
         SetHealthBar();
         Debug.Log("Current enemy health: " + currentHealth);
+    }
+
+    public void HealUp(int amount) 
+    {
+        if (currentHealth / startingHealth > .5f) 
+        {
+            currentHealth += amount;
+            SetHealthBar();
+            Debug.Log("Enemy recovered and now has " + currentHealth);
+        }
     }
 
     private void SetHealthBar()
