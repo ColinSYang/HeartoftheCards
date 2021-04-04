@@ -8,6 +8,7 @@ public class CardController : MonoBehaviour
 {
     List<Card> deck;
     Card[] hand;
+    Card[] storage;
     public int numDecks = 1;
     public float discardCooldown = 5f;
     public Text handText;
@@ -15,11 +16,18 @@ public class CardController : MonoBehaviour
     public int distanceToNextCard = 65;
     public float projectileCooldown = 2f;
     public bool hasHand = true;
+    public int healAmount = -20; //MUST BE NEGATIVE
+    public GameObject player;
+    public int damageMultiplier = 2;
+    public GameObject enemy;
 
     bool canDiscard = true;
     float discardCDTimer = 0f;
-    int handValue;
+    //int handValue;
     float timeElapsed = 0;
+    Hand currentHand;
+    Suite flushSuite = Suite.None;
+    bool hasDamageBuff = false;
 
     // Start is called before the first frame update
     void Start()
@@ -29,28 +37,30 @@ public class CardController : MonoBehaviour
         FillDeck(deck, numDecks);
         Extensions.Shuffle<Card>(deck);
         hand = new Card[5];
+        storage = new Card[3];
 
         //Deal first hand
-        Deal(5);
+        Deal(5, hand);
         //handText.text = printHand(hand);
         printHand(hand);
-        Hand handVal = FindHand(hand);
-        print(handVal);
-        UpdateProjectileDamage(handVal);
+        currentHand = FindHand(hand);
+        print(currentHand);
+        UpdateProjectileDamage(currentHand);
 
-        handValue = AddedValue(hand);
-        valueText.text = "Added Value: " + handValue;
-        //Prints out entire deck
-        //foreach (Card c in deck)
-        //{
-        //    Debug.Log(c.printCard());
-        //}
+        Deal(3, storage);
+        for (int i = 0; i < 3; i++) {
+            GameObject card = GameObject.Find(storage[i].printCard());
+            RectTransform tf = card.GetComponent<RectTransform>();
+            tf.localScale -= new Vector3(.3f, .3f, .3f);
+        }
+        printStorage(storage);
 
-        //Prints out hand
-        //foreach(Card c in hand)
-        //{
-        //    Debug.Log(c.printCard());
-        //}
+        UpdateHandText();
+
+        player = GameObject.FindGameObjectWithTag("Player");
+        player = GameObject.FindGameObjectWithTag("Enemy");
+        //handValue = AddedValue(hand);
+        //valueText.text = "Added Value: " + handValue;
     }
 
     // Update is called once per frame
@@ -59,7 +69,15 @@ public class CardController : MonoBehaviour
         if (!hasHand) {
             timeElapsed += Time.deltaTime;
             if (timeElapsed >= projectileCooldown) {
-                Deal(5);
+                for (int i = 0; i < 5; i++) {
+                    DealCardAt(i, hand);
+                }
+
+                currentHand = FindHand(hand);
+                print(currentHand);
+                UpdateProjectileDamage(currentHand);
+                UpdateHandText();
+
                 hasHand = true;
                 timeElapsed = 0;
                 printHand(hand);
@@ -105,7 +123,7 @@ public class CardController : MonoBehaviour
     }
 
     //Deals a specified amount of cards
-    void Deal(int n)
+    void Deal(int n, Card[] hand)
     {
         for(int i = 0; i < n; ++i)
         {
@@ -121,7 +139,27 @@ public class CardController : MonoBehaviour
         }
     }
 
+    void DealCardAt(int i, Card[] hand) {
+        if (deck.Count == 0) {
+            FillDeck(deck, 1);
+            Extensions.Shuffle<Card>(deck);
+        }
+
+        int j = 0;
+        while (Contains(hand, deck[j]) || Contains(storage, deck[j])) {
+            j++;
+            if (j >= deck.Count) {
+                FillDeck(deck, 1);
+                Extensions.Shuffle<Card>(deck);
+            }
+        }
+
+        hand[i] = deck[j];
+        deck.RemoveAt(j);
+    }
+
     public void ThrowProjectile() {
+        HandleFlush();
         UnPrintHand(hand);
         hasHand = false;
     }
@@ -137,7 +175,11 @@ public class CardController : MonoBehaviour
     //Prints the current hand
     private void printHand(Card[] hand)
     {
-        int x = 290;
+        GameObject storageBlock = GameObject.FindGameObjectWithTag("HandTextBG");
+
+        float x = storageBlock.transform.position.x;
+        float y = storageBlock.transform.position.y;
+
         int z = 0;
         foreach(Card c in hand)
         {
@@ -153,7 +195,32 @@ public class CardController : MonoBehaviour
             canvas.sortingOrder = z;
 
             RectTransform tf = card.GetComponent<RectTransform>();
-            tf.SetPositionAndRotation(new Vector3(300 + x, 50), tf.rotation);
+            tf.SetPositionAndRotation(new Vector3(x - 210, y - 115), tf.rotation);
+            x += distanceToNextCard;
+            z++;
+        }
+    }
+
+    private void printStorage(Card[] storage) {
+        GameObject storageBlock = GameObject.FindGameObjectWithTag("StoredCardsBG");
+
+        float x = storageBlock.transform.position.x;
+        float y = storageBlock.transform.position.y;
+        int z = 1;
+
+        foreach (Card c in storage) {
+            GameObject card = GameObject.Find(c.printCard());
+
+            Canvas canvas;
+            if (!card.TryGetComponent<Canvas>(out canvas)) {
+                canvas = card.AddComponent<Canvas>();
+                canvas.overrideSorting = true;
+            }
+
+            canvas.sortingOrder = z;
+
+            RectTransform tf = card.GetComponent<RectTransform>();
+            tf.SetPositionAndRotation(new Vector3(x - 65, y - 10), tf.rotation);
             x += distanceToNextCard;
             z++;
         }
@@ -162,6 +229,10 @@ public class CardController : MonoBehaviour
     //Handles user input related to discarding cards from your hand
     //TODO: FIX THIS TERRIBLE CODE
     private void HandleDiscard() {
+        if (CheckStorage()) {
+            return;
+        }
+
         int index = -1;
         if (Input.GetKeyDown(KeyCode.Alpha1)) {
             index = 0;
@@ -180,34 +251,93 @@ public class CardController : MonoBehaviour
             GameObject card = GameObject.Find(hand[index].printCard());
             RectTransform tf = card.GetComponent<RectTransform>();
             if (hand[index].discardQueue) {
-                tf.SetPositionAndRotation(new Vector3(tf.position.x, 70), tf.rotation);
+                tf.SetPositionAndRotation(new Vector3(tf.position.x, tf.position.y + 20), tf.rotation);
             } else {
-                tf.SetPositionAndRotation(new Vector3(tf.position.x, 50), tf.rotation);
+                tf.SetPositionAndRotation(new Vector3(tf.position.x, tf.position.y - 20), tf.rotation);
             }
         }
         
         if (Input.GetKeyDown(KeyCode.E)) {
             for (int i = 0; i < 5; i++) {
                 if (hand[i].discardQueue) {
+                    hand[i].discardQueue = false;
                     Card c = hand[i];
                     GameObject card = GameObject.Find(c.printCard());
                     RectTransform tf = card.GetComponent<RectTransform>();
                     tf.SetPositionAndRotation(new Vector3(20, -100), tf.rotation);
-                    DealCardAt(i);
+                    DealCardAt(i, hand);
                 }
             }
 
             canDiscard = false;
             printHand(hand);
-
+            
             // finds the value of this hand
-            Hand handVal = FindHand(hand);
-            print(handVal);
-            UpdateProjectileDamage(handVal);
+            currentHand = FindHand(hand);
+            print(currentHand);
+            UpdateProjectileDamage(currentHand);
 
+            UpdateHandText();
+
+            /*
             handValue = AddedValue(hand);
-            valueText.text = "Added Value: " + handValue;
+            valueText.text = "Added Value: " + handValue;*/
         }
+    }
+
+    private bool CheckStorage() {
+        if (Input.GetKey(KeyCode.LeftShift)) {
+            int toStore = -1;
+            int inQueue = 0;
+            for (int i = 0; i < 5; i++) {
+                if (hand[i].discardQueue) {
+                    toStore = i;
+                    inQueue++;
+                }
+            }
+
+            if (toStore == -1 || inQueue != 1) {
+                return false;
+            }
+
+            int toReplace = -1;
+            if (Input.GetKeyDown(KeyCode.Alpha1)) {
+                toReplace = 0;
+            } else if (Input.GetKeyDown(KeyCode.Alpha2)) {
+                toReplace = 1;
+            } else if (Input.GetKeyDown(KeyCode.Alpha3)) {
+                toReplace = 2;
+            } else {
+                return false;
+            }
+
+            Card temp = storage[toReplace];
+            storage[toReplace] = hand[toStore];
+            hand[toStore] = temp;
+            storage[toReplace].discardQueue = false;
+
+
+            GameObject card = GameObject.Find(storage[toReplace].printCard());
+            RectTransform tf = card.GetComponent<RectTransform>();
+            tf.localScale -= new Vector3(.3f, .3f, .3f);
+
+            card = GameObject.Find(hand[toStore].printCard());
+            tf = card.GetComponent<RectTransform>();
+            tf.localScale += new Vector3(.3f, .3f, .3f);
+
+            printHand(hand);
+            printStorage(storage); 
+            
+            currentHand = FindHand(hand);
+            print(currentHand);
+            UpdateProjectileDamage(currentHand);
+
+            UpdateHandText();
+
+            return true;
+        }
+
+        return false;
     }
 
     void UpdateProjectileDamage(Hand handVal) {
@@ -232,9 +362,21 @@ public class CardController : MonoBehaviour
             damage = 150;
         } else {
             damage = 200;
-        }
+        } 
+
         var projectile = gameObject.GetComponentInChildren<FireProjectile>();
+        if (hasDamageBuff)
+        {
+            hasDamageBuff = false;
+            damage *= damageMultiplier;
+        }
         projectile.damage = damage;
+    }
+
+    void UpdateHandText() {
+        handText.text = "Current Hand:\t" + currentHand;
+        var projectile = gameObject.GetComponentInChildren<FireProjectile>();
+        valueText.text = "Damage:\t" + projectile.damage;
     }
 
     //Adds up the value of hands
@@ -307,25 +449,6 @@ public class CardController : MonoBehaviour
         }
     }
 
-    void DealCardAt(int i) {
-        if (deck.Count == 0) {
-            FillDeck(deck, 1);
-            Extensions.Shuffle<Card>(deck);
-        }
-
-        int j = 0;
-        while (Contains(hand, deck[j])) {
-            j++;
-            if (j >= deck.Count) {
-                FillDeck(deck, 1);
-                Extensions.Shuffle<Card>(deck);
-            }
-        }
-
-        hand[i] = deck[j];
-        deck.RemoveAt(j);
-    }
-
     bool Contains(Card[] hand, Card card) {
         for (int i = 0; i < hand.Length; i++) {
             if (hand[i].suite == card.suite && hand[i].value == card.value) {
@@ -342,6 +465,7 @@ public class CardController : MonoBehaviour
                 return false;
             }
         }
+        flushSuite = suite;
         return true;
     }
 
@@ -357,11 +481,36 @@ public class CardController : MonoBehaviour
         }
         return max;
     }
+
+    void HandleFlush()
+    {
+        switch (flushSuite)
+        {
+            case Suite.None:
+                return; //Does nothing <3
+            case Suite.Heart:
+                player.GetComponent<PlayerHealth>().TakeDamage(healAmount);
+                flushSuite = Suite.None;
+                break;
+            case Suite.Diamond:
+                player.GetComponent<PlayerHealth>().hasArmor = true;
+                flushSuite = Suite.None;
+                break;
+            case Suite.Club:
+                enemy.GetComponent<EnemyAttacks>().Stun();
+                flushSuite = Suite.None;
+                break;
+            case Suite.Spade:
+                hasDamageBuff = true;
+                flushSuite = Suite.None;
+                break;
+        }
+    }
 }
 
 //Enum representing the suite of a card
 public enum Suite {
-    Diamond, Heart, Spade, Club
+    Diamond, Heart, Spade, Club, None
 }
 
 //Enum representing types of hands
