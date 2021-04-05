@@ -10,7 +10,7 @@ public class EnemyHealth : MonoBehaviour
     Animator anim;
     public AudioClip hitSFX;
 
-    public int currentHealth;
+    int currentHealth;
 
     // Start is called before the first frame update
     void Start()

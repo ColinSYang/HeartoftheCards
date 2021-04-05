@@ -4,13 +4,15 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour {
     public float moveSpeed = 10f;
-    public float dashSpeed = 200f;
+    public float dashSpeed = 50f;
     public float dashCooldown = 3f;
 
     CharacterController controller;
     Vector3 input, moveDirection;
     bool canDash = true;
-    float dashCooldownTimer = 0f;
+    bool dashing = false;
+    float dashTime = 0.15f;
+    float dashTimer = 0f;
 
     float y;
 
@@ -26,21 +28,33 @@ public class PlayerController : MonoBehaviour {
         float moveHorizontal = Input.GetAxis("Horizontal");
         float moveVertical = Input.GetAxis("Vertical");
 
-        if (!canDash)
+        if (!canDash && !dashing)
         {
-            dashCooldownTimer += Time.deltaTime;
-            if (dashCooldownTimer >= dashCooldown)
+            dashTimer += Time.deltaTime;
+            DashCooldown.UpdateCooldown(dashTimer, dashCooldown);
+            if (dashTimer >= dashCooldown)
             {
                 canDash = true;
-                dashCooldownTimer = 0f;
+                dashTimer = 0f;
             }
         }
 
         input = (transform.right * moveHorizontal + transform.forward * moveVertical).normalized;
         if (Input.GetKeyDown(KeyCode.R) && canDash)
         {
-            input *= dashSpeed;
             canDash = false;
+            dashing = true;
+        }
+
+        if (dashing)
+        {
+            input *= dashSpeed;
+            dashTimer += Time.deltaTime;
+            if (dashTimer >= dashTime)
+            {
+                dashing = false;
+                dashTimer = 0f;
+            }
         }
         else
         {

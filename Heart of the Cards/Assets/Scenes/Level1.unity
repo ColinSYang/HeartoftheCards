@@ -2284,7 +2284,6 @@ MonoBehaviour:
   startingHealth: 200
   healthBar: {fileID: 1904444335}
   hitSFX: {fileID: 8300000, guid: 303811cec7bbe6449b16a44194fd3205, type: 3}
-  currentHealth: 0
 --- !u!1 &504632895
 GameObject:
   m_ObjectHideFlags: 0
@@ -6389,6 +6388,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf058d624080e6442992501d47effa71, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mouseSensitivity: 100
 --- !u!114 &963194230
 MonoBehaviour:
   m_ObjectHideFlags: 0
