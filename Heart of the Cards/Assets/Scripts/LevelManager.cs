@@ -37,6 +37,7 @@ public class LevelManager : MonoBehaviour
         if (!gameOver) {
             gameOver = true;
             AudioSource.PlayClipAtPoint(loseSFX, player.transform.position);
+            gameOverText.text = "You lose :(";
             gameOverText.enabled = true;
             Invoke("LoadCurrentLevel", 2);
         }
@@ -48,10 +49,15 @@ public class LevelManager : MonoBehaviour
             AudioSource.PlayClipAtPoint(winSFX, player.transform.position);
             gameOverText.text = "You win!!!";
             gameOverText.enabled = true;
+            Invoke("LoadNextLevel", 2);
         }
     }
 
     void LoadCurrentLevel() {
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    void LoadNextLevel() {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
     }
 }
